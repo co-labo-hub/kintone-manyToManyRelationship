@@ -20,7 +20,7 @@
             'query': 'thisAppIdInOtherApp in ("{{relationFieldCode}}")',    // 置換文字列: {{relationFieldCode}}
             'fields': ['otherAppId', 'somethingFieldCode'/*, ...*/],       //取得する列のフィールドコード
         },
-        'linkFieldCode': 'otherAppId'         //リンクにする列のフィールドコード（別アプリ側の）
+        'linkFieldCode': 'otherAppId'         //リンクにする列のフィールドコード（config.relation.fields[] のどれか）
     };
 
     // To HTML escape
