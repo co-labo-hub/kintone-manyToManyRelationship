@@ -84,8 +84,12 @@
                 relTable += '<tr>';
                 relTable += config.relation.fields.map(function(field) {
                                 var val = record[field].value;
-                                if (Array.isArray(val)) {
+                                if (val === null) {
+                                    val = '';
+                                } else if (Array.isArray(val)) {
                                     val = val.map(function(elem) {return elem.name}).join(', ');
+                                } else if (record[field].type == 'DATETIME') {
+                                    val = new Date(val).toLocaleString();
                                 }
                                 if(field == config.linkFieldCode) {
                                     val = a(record.$id.value, val);
