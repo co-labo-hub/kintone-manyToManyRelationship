@@ -7,24 +7,38 @@
 *
 * Fork:
 *   汎用化（設定値をconfigオブジェクトに集約）
-*   TODO: プラグイン化し画面上で設定し値を保存
 */
 (function() {
     'use strict';
 
-    var config = {
-        'placeFieldCode': 'placeholder',       //このアプリ内で埋め込むスペースのフィールドコード
-        'relationFieldCode': 'thisAppId',       //関連付けするこのアプリ側のフィールドコード
-        'relation': {                           //関連付けする別アプリ側の設定値
-            'app': 'n',
-            'query': 'thisAppIdInOtherApp in ("{{relationFieldCode}}")',    // 置換文字列: {{relationFieldCode}}
-            'fields': ['otherAppId', 'somethingFieldCode'/*, ...*/],       //取得する列のフィールドコード
+    var config = [
+      {
+        'placeFieldCode': '',       //このアプリ内で埋め込むスペースのフィールドコード
+        'relationFieldCode': '',    //関連付けするこのアプリ側のフィールドコード
+        'relation': {               //関連付けする別アプリ側の設定値
+            'app': '',
+            'query': '__relFieldCodeOnOtherApp__ in ("{{relationFieldCode}}") order by __something__ desc limit 500',    // 置換文字列: {{relationFieldCode}}
+            'fields': [],           //取得する列のフィールドコード
         },
-        'linkFieldCode': 'otherAppId'         //リンクにする列のフィールドコード（config.relation.fields[] のどれか）
-    };
+        'linkFieldCode': ''         //リンクにする列のフィールドコード（別アプリ側の）
+      },
+      /*
+      {
+        'placeFieldCode': '',
+        'relationFieldCode': '',
+        'relation': {
+            'app': '',
+            'query': '__relFieldCodeOnOtherApp__ in ("{{relationFieldCode}}") order by __something__ desc limit 500',
+            'fields': [],
+        },
+        'linkFieldCode': ''
+      }
+      */
+    ];
 
     // To HTML escape
     function escapeHtml(str) {
+        if (! str && str !== 0) return '';
         return str
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
@@ -44,37 +58,34 @@
             +    '<div class="kintoneplugin-table-td-control">' + (noEscape ? val : escapeHtml(val)) + '</div>'
             + '</td>';
     }
-    function a(id, text) {
+    function a(app, id, text) {
         return ''
-            + '<a href="/k/' + config.relation.app + '/show#record=' + escapeHtml(id) + '" target="_blank">'
+            + '<a href="/k/' + app + '/show#record=' + escapeHtml(id) + '" target="_blank">'
             +    escapeHtml(text)
             + '</a>';
-    }
-
-    kintone.events.on(['app.record.detail.show', 'app.record.edit.show'], function(event) {
-
-        var record = event.record;
+    } 
+    function makeTable(record, conf) {
         // 増殖バグ回避
-        if (document.getElementById(config.placeFieldCode) !== null) {
-            return event;
+        if (document.getElementById(conf.placeFieldCode) !== null) {
+            return;
         }
         // スペースを取得
-        var subtableSpace = kintone.app.record.getSpaceElement(config.placeFieldCode);
+        var subtableSpace = kintone.app.record.getSpaceElement(conf.placeFieldCode);
 
         var props = null;
-        kintone.api(kintone.api.url('/k/v1/app/form/fields', true), 'GET', {'app': config.relation.app})
+        kintone.api(kintone.api.url('/k/v1/app/form/fields', true), 'GET', {'app': conf.relation.app})
         .then(function(resp) {
             props = resp.properties;
             // Rest API
-            var params = JSON.parse(JSON.stringify(config.relation));
-            params.query = params.query.replace('{{relationFieldCode}}', record[config.relationFieldCode].value);
+            var params = JSON.parse(JSON.stringify(conf.relation));
+            params.query = params.query.replace('{{relationFieldCode}}', record[conf.relationFieldCode].value);
             params.fields.push('$id');
             return kintone.api(kintone.api.url('/k/v1/records', true), 'GET', params);
         }).then(function(resp) {
             var relTable = '<table class="kintoneplugin-table">';
             relTable += '<thead>';
             relTable += '<tr>';
-            relTable += config.relation.fields.map(function(field) {
+            relTable += conf.relation.fields.map(function(field) {
                             return th(props[field].label);
                         }).join('');
             relTable += '</tr>';
@@ -82,17 +93,13 @@
             relTable += '<tbody>';
             resp.records.forEach(function(record) {
                 relTable += '<tr>';
-                relTable += config.relation.fields.map(function(field) {
+                relTable += conf.relation.fields.map(function(field) {
                                 var val = record[field].value;
-                                if (val === null) {
-                                    val = '';
-                                } else if (Array.isArray(val)) {
+                                if (Array.isArray(val)) {
                                     val = val.map(function(elem) {return elem.name}).join(', ');
-                                } else if (record[field].type == 'DATETIME') {
-                                    val = new Date(val).toLocaleString();
                                 }
-                                if(field == config.linkFieldCode) {
-                                    val = a(record.$id.value, val);
+                                if(field == conf.linkFieldCode) {
+                                    val = a(conf.relation.app, record.$id.value, val);
                                     return td(val, true);
                                 }
                                 return td(val);
@@ -111,6 +118,12 @@
             }
             subtableSpace.appendChild(document.createTextNode(errmsg));
         });
-        return event;
+    }
+
+    kintone.events.on(['app.record.detail.show', 'app.record.edit.show'], function(event) {
+      config.forEach(function(conf) {
+        makeTable(event.record, conf)
+      });
+      return event;
     });
 })();

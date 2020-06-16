@@ -27,7 +27,7 @@
         var params = new URL(document.location).searchParams;
         for (var i = 0; i < config.length; i++) {
             var conf = config[i];
-            if (params.get('action') == conf.action && paramas.get('app') == conf.app) {
+            if (params.get('action') == conf.action && params.get('app') == conf.app) {
                 var target = event
                             .record[conf.tableFieldCode]
                             .value[0]
