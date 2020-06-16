@@ -6,7 +6,8 @@
 *   Licensed under the MIT License
 *
 * Fork:
-*   汎用化（設定値をconfigオブジェクトに集約）
+*   +設定値をconfigオブジェクトに集約
+*   +複数のN:N関連レコード一覧を表示
 */
 (function() {
     'use strict';
@@ -95,8 +96,12 @@
                 relTable += '<tr>';
                 relTable += conf.relation.fields.map(function(field) {
                                 var val = record[field].value;
-                                if (Array.isArray(val)) {
+                                if (val === null) {
+                                    val = '';
+                                } else if (Array.isArray(val)) {
                                     val = val.map(function(elem) {return elem.name}).join(', ');
+                                } else if (record[field].type == 'DATETIME') {
+                                    val = new Date(val).toLocaleString();
                                 }
                                 if(field == conf.linkFieldCode) {
                                     val = a(conf.relation.app, record.$id.value, val);
